@@ -21,6 +21,7 @@ from forms import (
     ProjectForm,
     ProjectUpdateForm,
     TaskPresenterForm,
+    ImportLabelsForm,
     TaskRedundancyForm,
     TaskPriorityForm,
     TaskSchedulerForm,

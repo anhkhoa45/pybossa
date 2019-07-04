@@ -717,12 +717,22 @@ def import_labels(short_name):
     ensure_authorized_to('read', project)
     ensure_authorized_to('update', project)
     pro = pro_features()
-    form = TaskPresenterForm(request.body)
+    form = ImportLabelsForm(request.form)
     project_sanitized, owner_sanitized = sanitize_project_owner(project,
                                                                 owner,
                                                                 current_user,
                                                                 ps)
+
+    class Label:
+        def __init__(self, key, value):
+            self.key = key
+            self.value = value
+        def toObject(self):
+            return {"key": self.key, "value": self.value}
+
     if request.method == 'GET':
+        if project.info and project.info["labels"]:
+            form.labels = project.info["labels"]
         response = dict(template='/projects/task_import_labels.html',
                     project=project_sanitized,
                     owner=owner_sanitized,
@@ -735,14 +745,26 @@ def import_labels(short_name):
                     pro_features=pro)
         return handle_content_type(response)
     if request.method == 'POST':
-        print ("Hello")
-        print request.form['key']
-        return "ok", 200
-        # msg_1 = gettext('Labels imported!')
-        # markup = Markup('<i class="icon-ok"></i> {}')
-        # flash(markup.format(msg_1), 'success')
-        # return redirect_content_type(url_for('.tasks',
-        #                                      short_name=project.short_name))
+        keys = request.form.getlist('key')
+        values = request.form.getlist('value')
+        i = 0
+        labels = []
+        while i < len(keys):
+            temp = Label(keys[i],values[i])
+            labels.append(temp.toObject())
+            i = i + 1
+        db_project = project_repo.get(project.id)
+        old_project = Project(**db_project.dictize())
+        old_info = dict(db_project.info)
+        old_info['labels'] = labels
+        db_project.info = old_info
+        auditlogger.add_log_entry(old_project, db_project, current_user)
+        project_repo.update(db_project)
+        msg_1 = gettext('Labels imported!')
+        markup = Markup('<i class="icon-ok"></i> {}')
+        flash(markup.format(msg_1), 'success')
+        return redirect_content_type(url_for('.tasks',
+                                             short_name=project.short_name))
     else:
         flash(gettext('Please correct the errors'), 'error')
         response = dict(template='/projects/task_import_labels.html',

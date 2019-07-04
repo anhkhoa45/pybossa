@@ -88,6 +88,12 @@ class TaskPresenterForm(Form):
     id = IntegerField(label=None, widget=HiddenInput())
     editor = TextAreaField('')
 
+class ImportLabelsForm(Form):
+    key = TextField('')
+    value = TextField('')
+    def get_label_import(self):
+        return {'key': self.key.data, 'value': self.value.data}
+
 
 class TaskRedundancyForm(Form):
     n_answers = IntegerField(lazy_gettext('Redundancy'),
