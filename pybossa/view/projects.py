@@ -709,6 +709,53 @@ def _import_tasks(project, **form_data):
     return redirect_content_type(url_for('.tasks',
                                          short_name=project.short_name))
 
+@blueprint.route('/<short_name>/tasks/labels', methods=['GET', 'POST'])
+@login_required
+def import_labels(short_name):
+    project, owner, ps = project_by_shortname(short_name)
+    title = project_title(project, "Tasks")
+    ensure_authorized_to('read', project)
+    ensure_authorized_to('update', project)
+    pro = pro_features()
+    form = TaskPresenterForm(request.body)
+    project_sanitized, owner_sanitized = sanitize_project_owner(project,
+                                                                owner,
+                                                                current_user,
+                                                                ps)
+    if request.method == 'GET':
+        response = dict(template='/projects/task_import_labels.html',
+                    project=project_sanitized,
+                    owner=owner_sanitized,
+                    title=title,
+                    form=form,
+                    n_tasks=ps.n_tasks,
+                    overall_progress=ps.overall_progress,
+                    n_volunteers=ps.n_volunteers,
+                    n_completed_tasks=ps.n_completed_tasks,
+                    pro_features=pro)
+        return handle_content_type(response)
+    if request.method == 'POST':
+        print ("Hello")
+        print request.form['key']
+        return "ok", 200
+        # msg_1 = gettext('Labels imported!')
+        # markup = Markup('<i class="icon-ok"></i> {}')
+        # flash(markup.format(msg_1), 'success')
+        # return redirect_content_type(url_for('.tasks',
+        #                                      short_name=project.short_name))
+    else:
+        flash(gettext('Please correct the errors'), 'error')
+        response = dict(template='/projects/task_import_labels.html',
+                    project=project_sanitized,
+                    owner=owner_sanitized,
+                    title=title,
+                    form=form,
+                    n_tasks=ps.n_tasks,
+                    overall_progress=ps.overall_progress,
+                    n_volunteers=ps.n_volunteers,
+                    n_completed_tasks=ps.n_completed_tasks,
+                    pro_features=pro)
+        return handle_content_type(response)
 
 @blueprint.route('/<short_name>/tasks/autoimporter', methods=['GET', 'POST'])
 @login_required
