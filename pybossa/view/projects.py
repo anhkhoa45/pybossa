@@ -780,10 +780,13 @@ def import_labels(short_name):
                     pro_features=pro)
         return handle_content_type(response)
 
-@blueprint.route('/<short_name>/tasks/getlabels', methods=['POST'])
+@blueprint.route('/<short_name>/tasks/getlabels', methods=['GET'])
 def get_labels(short_name):
     project, owner, ps = project_by_shortname(short_name)
-    print (project)
+    labels = project.info["labels"]
+    if labels:
+        return json.dumps(labels), 200
+    return json.dumps({"code": 2007, "messages": "No Labels"}), 200
 @blueprint.route('/<short_name>/tasks/autoimporter', methods=['GET', 'POST'])
 @login_required
 def setup_autoimporter(short_name):
