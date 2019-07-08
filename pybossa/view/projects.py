@@ -750,8 +750,9 @@ def import_labels(short_name):
         i = 0
         labels = []
         while i < len(keys):
-            temp = Label(keys[i],values[i])
-            labels.append(temp.toObject())
+            if(keys[i] != "" and values[i] != ""):
+                temp = Label(keys[i],values[i])
+                labels.append(temp.toObject())
             i = i + 1
         db_project = project_repo.get(project.id)
         old_project = Project(**db_project.dictize())
@@ -779,6 +780,10 @@ def import_labels(short_name):
                     pro_features=pro)
         return handle_content_type(response)
 
+@blueprint.route('/<short_name>/tasks/getlabels', methods=['POST'])
+def get_labels(short_name):
+    project, owner, ps = project_by_shortname(short_name)
+    print (project)
 @blueprint.route('/<short_name>/tasks/autoimporter', methods=['GET', 'POST'])
 @login_required
 def setup_autoimporter(short_name):
