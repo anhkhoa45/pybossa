@@ -377,7 +377,6 @@ def task_presenter_editor(short_name):
 
             wrap = lambda i: "projects/presenters/%s.html" % i
             pres_tmpls = map(wrap, current_app.config.get('PRESENTERS'))
-
             project = add_custom_contrib_button_to(project, get_user_id_or_ip(), ps=ps)
             project_sanitized, owner_sanitized = sanitize_project_owner(project,
                                                                         owner,
