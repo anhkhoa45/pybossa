@@ -731,8 +731,10 @@ def import_labels(short_name):
             return {"key": self.key, "value": self.value}
 
     if request.method == 'GET':
-        if project.info and project.info["labels"]:
-            form.labels = project.info["labels"]
+        if project.info:
+            if "labels" in project.info:
+                form.labels = project.info["labels"]
+        else: form.labels = ""
         response = dict(template='/projects/task_import_labels.html',
                     project=project_sanitized,
                     owner=owner_sanitized,
