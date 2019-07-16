@@ -314,9 +314,13 @@ def get_disqus_sso_api():
         return error.format_exception(e, target='DISQUS_SSO', action='GET')
 
 @jsonpify
-@blueprint.route('/task/<short_name>/submittask', methods=['GET'])
-def submit_task(project_id=None, short_name=None):
-    datas = request.get_json()
+@blueprint.route('/task/<short_name>/submittask', methods=['POST'])
+def submittask(project_id=None, short_name=None):
+    # if request.method == 'POST':
+    #     print 'hello'
+    #     return "test", 200
+    temp = request.get_json()
+    datas = temp['data']
     init(datas[0]['documentId'])
     for data in datas:
         annolist = data['annotations']
@@ -384,7 +388,7 @@ def convert_xml(inf, outf, page_numbers=None, output_type='xml', codec='utf-8', 
     rsrcmgr = PDFResourceManager(caching=not disable_caching)
 
     device = XMLConverter(rsrcmgr, outf, codec='utf-8', laparams=laparams,
-                        imagewriter=imagewriter,
+                        imagewriter=imagewriter
                         )
 
     interpreter = PDFPageInterpreter(rsrcmgr, device)
