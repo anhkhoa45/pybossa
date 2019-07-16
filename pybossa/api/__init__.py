@@ -29,7 +29,31 @@ This package adds GET, POST, PUT and DELETE methods for:
     * page
 
 """
+from pdfminer import utils
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdfpage import PDFPage, PDFTextExtractionNotAllowed
+from pdfminer.pdfdevice import PDFDevice, TagExtractor
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.converter import PDFLayoutAnalyzer, PDFConverter, XMLConverter, PDFPageAggregator
+from pdfminer.image import ImageWriter
+from pdfminer.cmapdb import CMapDB
+from pdfminer.pdfdevice import PDFTextDevice
+from pdfminer.pdffont import PDFUnicodeNotDefined
+from pdfminer.layout import LAParams, LTContainer, LTPage, LTText, LTLine, LTRect, LTCurve, LTFigure, LTImage, LTChar, LTTextLine, LTTextBox, LTTextBoxVertical, LTTextGroup
+from pdfminer.utils import apply_matrix_pt, mult_matrix, enc, bbox2str
 
+from flask import Flask, jsonify, request, render_template
+from lxml import etree
+import wget
+import os
+from os.path import join
+import io
+import re
+import requests
+from anno import Anno
+
+""""""
 import json
 import jwt
 from flask import Blueprint, request, abort, Response, make_response
@@ -67,6 +91,10 @@ blueprint = Blueprint('api', __name__)
 
 error = ErrorStatus()
 
+pg = None
+root = None
+annos = []
+tree = None
 
 @blueprint.route('/')
 @ratelimit(limit=ratelimits.get('LIMIT'), per=ratelimits.get('PER'))
@@ -226,7 +254,7 @@ def user_progress(project_id=None, short_name=None):
             project = project_repo.get(project_id)
 
         if project:
-            # For now, keep this version, but wait until redis cache is 
+            # For now, keep this version, but wait until redis cache is
             # used here for task_runs too
             query_attrs = dict(project_id=project.id)
             if current_user.is_anonymous():
@@ -284,3 +312,177 @@ def get_disqus_sso_api():
     except MethodNotAllowed as e:
         e.message = "Disqus keys are missing"
         return error.format_exception(e, target='DISQUS_SSO', action='GET')
+
+@jsonpify
+@blueprint.route('/task/<short_name>/submittask', methods=['GET'])
+def submit_task(project_id=None, short_name=None):
+    datas = request.get_json()
+    init(datas[0]['documentId'])
+    for data in datas:
+        annolist = data['annotations']
+        page = data['pageNumber']
+
+        for anno in annolist:
+            if anno['type'] == "area":
+                anno['page'] = page
+                add_anno(anno)
+            elif anno['type'] == "highlight" or anno['type'] == "strikeout":
+                for rectangle in anno['rectangles']:
+                    n_anno = anno
+                    n_anno.update(rectangle)
+                    anno['page'] = page
+                    add_anno(n_anno)
+    finish(datas[0]['documentId'])
+    return "ok", 200
+
+def init(url):
+    global pg, root, tree
+
+    r = requests.get(url, verify=False)
+    with open('result-file/tmp.pdf', 'wb') as f:
+        f.write(r.content)
+
+    inf = open('result-file/tmp.pdf', 'rb')
+    outf = open('result-file/tmp.xml', 'wb')
+    pg = convert_xml(inf, outf)
+    inf.close()
+    outf.close()
+
+    parser = etree.XMLParser(remove_blank_text=True)
+    tree = etree.parse("result-file/tmp.xml", parser)
+    root = tree.getroot()
+    root = clear_xml(root)
+
+def add_anno(r_anno):
+    global annos, root, pg
+    anno = tranform(pg, r_anno)
+    tag_covered = anno.browse(root)
+    anno.elements = tag_covered
+    annos.append(anno)
+
+def finish(url):
+    global pg, root, annos, tree
+    PATH_XML = 'result-file/' + url.split('/')[-1].split('.')[0] + '.xml'
+    # print (PATH_XML)
+    for anno in annos:
+        add_annotate_tag(anno)
+    merge_annotate_tag(root)
+    tree.write(PATH_XML, pretty_print=True)
+    os.remove('result-file/tmp.xml')
+    os.remove('result-file/tmp.pdf')
+    pg, root, annos = (None, None, [])
+
+
+def convert_xml(inf, outf, page_numbers=None, output_type='xml', codec='utf-8', laparams=None,
+                maxpages=0, scale=1.0, rotation=0, output_dir=None, strip_control=False,
+                debug=False, disable_caching=False):
+    laparams = LAParams()
+    imagewriter = None
+    if output_dir:
+        imagewriter = ImageWriter(output_dir)
+
+    rsrcmgr = PDFResourceManager(caching=not disable_caching)
+
+    device = XMLConverter(rsrcmgr, outf, codec='utf-8', laparams=laparams,
+                        imagewriter=imagewriter,
+                        )
+
+    interpreter = PDFPageInterpreter(rsrcmgr, device)
+    for page in PDFPage.get_pages(inf,
+                                page_numbers,
+                                maxpages=maxpages,
+                                caching=not disable_caching,
+                                check_extractable=True):
+        page.rotate = (page.rotate + rotation) % 360
+        interpreter.process_page(page)
+    device.close()
+    return page
+
+
+def tranform(page, r_anno):
+    mediabox = page.mediabox
+    # print mediabox
+    x1 = r_anno['x'] - 2 if 'x' in r_anno  else r_anno['x1'] - 2
+    y1 = mediabox[3] - r_anno['y'] - r_anno['height'] - 2 if 'y' in r_anno else mediabox[3] - r_anno['y1'] - 2
+    x2 = x1 + r_anno['width'] + 4 if 'x' in r_anno  else r_anno['x2'] - 2
+    y2 = y1 + r_anno['height'] + 4 if 'y' in r_anno else mediabox[3] - r_anno['y2'] - 2
+
+    anno = Anno(x1, y1, x2, y2, r_anno['page'],
+                r_anno['type'], r_anno['entity'])
+    return anno
+
+
+special_character = " !\"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"
+def clear_xml(tag):
+    if len(tag) > 0:
+        for subtag in tag:
+            clear_xml(subtag)
+        if len(tag) == 0:
+            tag.getparent().remove(tag)
+    elif tag.tag == "text" and "bbox" not in tag.attrib:
+        tag.getparent().remove(tag)
+    elif tag.text is None:
+        tag.getparent().remove(tag)
+    elif not tag.text.isalpha() and not tag.text.isdigit() and tag.text not in special_character:
+        tag.getparent().remove(tag)
+    return tag
+
+
+# Search frame of tag, is bottom-left and top-right
+def get_border_of_elements(elements):
+    bx1 = 99999
+    by1 = 99999
+    bx2 = -99999
+    by2 = -99999
+    for i in elements:
+        x1, y1, x2, y2 = [float(x) for x in i.attrib['bbox'].split(',')]
+        if x1 < bx1:
+            bx1 = x1
+        if y1 < by1:
+            by1 = y1
+        if x2 > bx2:
+            bx2 = x2
+        if y2 > by2:
+            by2 = y2
+    bbox = str(bx1) + ',' + str(by1) + ',' + str(bx2) + ',' + str(by2)
+    return (bbox)
+
+# Add frame anno
+def add_annotate_tag(anno):
+    # print anno.elements
+    for element in anno.elements:
+        parent = element.getparent()
+        index = parent.index(element)
+        bbox = element.attrib['bbox']
+
+        if parent.tag == "Annotate" and parent.attrib['label'] == anno.label and parent.attrib['bbox'] == bbox:
+            continue
+
+        anno_tag = etree.Element("Annotate")
+        anno_tag.set("bbox", bbox)
+        anno_tag.set("label", anno.label)
+        anno_tag.insert(len(anno_tag), element)
+        parent.insert(index, anno_tag)
+
+
+# Merge nearest annotate tag
+def merge_annotate_tag(tag):
+    index = 0
+    while True:
+        if index >= len(tag):
+            break
+        inner_tag = tag[index]
+        merge_annotate_tag(inner_tag)
+        if inner_tag.tag == "Annotate":
+            anno_tag = etree.Element("Annotate")
+            label = inner_tag.attrib['label']
+            i = index
+            while i < len(tag) and tag[i].tag == "Annotate" and tag[i].attrib['label'] == label:
+                merge_annotate_tag(tag[i])
+                for tg in tag[i]:
+                    anno_tag.insert(len(anno_tag), tg)
+                tag.remove(tag[i])
+            anno_tag.set('bbox', get_border_of_elements(anno_tag))
+            anno_tag.set('label', inner_tag.attrib['label'])
+            tag.insert(index, anno_tag)
+        index += 1

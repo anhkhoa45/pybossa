@@ -22,6 +22,7 @@ This package adds GET, POST, PUT and DELETE methods for:
     * tasks
 
 """
+
 from flask import abort
 from werkzeug.exceptions import BadRequest
 from pybossa.model.task import Task
