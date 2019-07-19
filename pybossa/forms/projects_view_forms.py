@@ -22,6 +22,7 @@ from forms import (
     ProjectUpdateForm,
     TaskPresenterForm,
     ImportLabelsForm,
+    ImportFilesForm,
     TaskRedundancyForm,
     TaskPriorityForm,
     TaskSchedulerForm,

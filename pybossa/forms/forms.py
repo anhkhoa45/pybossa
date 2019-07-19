@@ -94,6 +94,42 @@ class ImportLabelsForm(Form):
     def get_label_import(self):
         return {'key': self.key.data, 'value': self.value.data}
 
+class ImportFilesForm(Form):
+    form_name = TextField(label=None, widget=HiddenInput(), default='files')
+    _allowed_extensions = set(['pdf','jpeg','png','gif'])
+    def _allowed_file(self, filename):
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1] in self._allowed_extensions
+
+    def _container(self):
+        return "user_%d" % current_user.id
+
+    def _upload_path(self):
+        container = self._container()
+        filepath = None
+        if isinstance(uploader, local.LocalUploader):
+            filepath = safe_join(uploader.upload_folder, container)
+            if not os.path.isdir(filepath):
+                os.makedirs(filepath)
+            return filepath
+
+        current_app.logger.error('Failed to generate upload path {0}'.format(filepath))
+        raise IOError('Local Upload folder is missing: {0}'.format(filepath))
+
+    def get_import_data(self):
+        if request.method == 'POST':
+            if 'file' not in request.files:
+                return {'type': 'filePDF', 'pdf_filename': None}
+            pdf_file = request.files['file']
+            if pdf_file.filename == '':
+                return {'type': 'filePDF', 'pdf_filename': None}
+            if pdf_file and self._allowed_file(pdf_file.filename):
+                filename = secure_filename(pdf_file.filename)
+                filepath = self._upload_path()
+                tmpfile = safe_join(filepath, filename)
+                pdf_file.save(tmpfile)
+                return {'type': 'filePDF', 'pdf_filename': tmpfile}
+        return {'type': 'localpdf', 'pdf_filename': None}
 
 class TaskRedundancyForm(Form):
     n_answers = IntegerField(lazy_gettext('Redundancy'),

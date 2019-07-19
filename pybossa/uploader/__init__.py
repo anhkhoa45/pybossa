@@ -31,7 +31,7 @@ class Uploader(object):
 
     """Generic uploader class."""
 
-    allowed_extensions = set(['js', 'css', 'png', 'jpg', 'jpeg', 'gif', 'zip'])
+    allowed_extensions = set(['js', 'css', 'png', 'jpg', 'jpeg', 'gif', 'zip', 'pdf'])
     size = 512, 512
 
     def __init__(self, app=None):

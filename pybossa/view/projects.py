@@ -789,6 +789,60 @@ def get_labels(short_name):
         if labels:
             return json.dumps(labels), 200
     return json.dumps({"code": 2007, "messages": "No Labels"}), 200
+
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+
+def allowed_file(filename):
+	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@blueprint.route('/<short_name>/tasks/importfiles', methods=['GET', 'POST'])
+def import_files(short_name):
+    project, owner, ps = project_by_shortname(short_name)
+    title = project_title(project, "Tasks")
+    ensure_authorized_to('read', project)
+    ensure_authorized_to('update', project)
+    pro = pro_features()
+    form = ImportFilesForm(request.form)
+    project_sanitized, owner_sanitized = sanitize_project_owner(project,
+                                                                owner,
+                                                                current_user,
+                                                                ps)
+
+    if request.method == 'GET':
+        response = dict(template='/projects/task_import_file.html',
+                    project=project_sanitized,
+                    owner=owner_sanitized,
+                    title=title,
+                    form=form,
+                    n_tasks=ps.n_tasks,
+                    overall_progress=ps.overall_progress,
+                    n_volunteers=ps.n_volunteers,
+                    n_completed_tasks=ps.n_completed_tasks,
+                    pro_features=pro)
+        return handle_content_type(response)
+    if request.method == 'POST':
+        if 'files[]' not in request.files:
+            flash(gettext('No file part'), 'error')
+            return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+        files = request.files.getlist('files[]')
+        for file in files:
+            print allowed_file(file.filename)
+        flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
+        return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+    else:
+        flash(gettext('Please correct the errors'), 'error')
+        response = dict(template='/projects/task_import_files.html',
+                    project=project_sanitized,
+                    owner=owner_sanitized,
+                    title=title,
+                    form=form,
+                    n_tasks=ps.n_tasks,
+                    overall_progress=ps.overall_progress,
+                    n_volunteers=ps.n_volunteers,
+                    n_completed_tasks=ps.n_completed_tasks,
+                    pro_features=pro)
+        return handle_content_type(response)
+
 @blueprint.route('/<short_name>/tasks/autoimporter', methods=['GET', 'POST'])
 @login_required
 def setup_autoimporter(short_name):
