@@ -825,8 +825,12 @@ def import_files(short_name):
             flash(gettext('No file part'), 'error')
             return redirect_content_type(url_for('.tasks', short_name=project.short_name))
         files = request.files.getlist('files[]')
+        container = "project_%s" % project.short_name
         for file in files:
-            print allowed_file(file.filename)
+            if file and allowed_file(file.filename):
+                uploader.upload_file(file,
+                                     container=container)
+
         flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
         return redirect_content_type(url_for('.tasks', short_name=project.short_name))
     else:
