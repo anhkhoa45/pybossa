@@ -667,6 +667,7 @@ def import_task(short_name):
     template_args['form'] = form
 
     if request.method == 'POST':
+        print form.get_import_data()
         if form.validate():  # pragma: no cover
             try:
                 return _import_tasks(project, **form.get_import_data())
