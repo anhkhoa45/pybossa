@@ -668,7 +668,6 @@ def import_task(short_name):
     template_args['form'] = form
 
     if request.method == 'POST':
-        print form.get_import_data()
         if form.validate():  # pragma: no cover
             try:
                 return _import_tasks(project, **form.get_import_data())
@@ -837,11 +836,23 @@ def import_files(short_name):
                 tempURL = "/uploads/{}/{}".format(container,file.filename)
                 data.append([tempURL,answer])
         # create csv file
-        with open('%s_tasks.csv' % project.short_name, 'w') as csvFile:
+        csvFileName = '%s_tasks.csv' % project.short_name
+        with open(csvFileName, 'w') as csvFile:
             writer = csv.writer(csvFile)
             writer.writerows(data)
         csvFile.close()
         # create task
+        import_data = {'type': 'localCSV', 'csv_filename': os.path.join(csvFileName)}
+        try:
+            return _import_tasks(project, **import_data)
+        except BulkImportException as err_msg:
+            flash(err_msg, 'error')
+        # removefile
+        try:
+            os.remove(csvFileName)
+            print "ok"
+        except Exception:
+            flash('Something went wrong!', 'error')
         # importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
         # show message
         flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
