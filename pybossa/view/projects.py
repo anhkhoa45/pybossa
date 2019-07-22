@@ -822,6 +822,7 @@ def import_files(short_name):
                     pro_features=pro)
         return handle_content_type(response)
     if request.method == 'POST':
+        tempArr = request.url.split("/")
         if 'files[]' not in request.files:
             flash(gettext('No file part'), 'error')
             return redirect_content_type(url_for('.tasks', short_name=project.short_name))
@@ -833,7 +834,7 @@ def import_files(short_name):
             if file and allowed_file(file.filename):
                 uploader.upload_file(file,
                                      container=container)
-                tempURL = "/uploads/{}/{}".format(container,file.filename)
+                tempURL = "http://{}/uploads/{}/{}".format(tempArr[2],container,file.filename)
                 data.append([tempURL,answer])
         # create csv file
         csvFileName = '%s_tasks.csv' % project.short_name
@@ -844,13 +845,12 @@ def import_files(short_name):
         # create task
         import_data = {'type': 'localCSV', 'csv_filename': os.path.join(csvFileName)}
         try:
-            return _import_tasks(project, **import_data)
+            _import_tasks(project, **import_data)
         except BulkImportException as err_msg:
             flash(err_msg, 'error')
         # removefile
         try:
             os.remove(csvFileName)
-            print "ok"
         except Exception:
             flash('Something went wrong!', 'error')
         # importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
