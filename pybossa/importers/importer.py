@@ -65,6 +65,7 @@ class Importer(object):
         empty = True
         n = 0
         importer = self._create_importer_for(**form_data)
+        print importer.tasks()
         for task_data in importer.tasks():
             task = Task(project_id=project_id)
             [setattr(task, k, v) for k, v in task_data.iteritems()]

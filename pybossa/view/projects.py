@@ -22,6 +22,7 @@ import json
 import os
 import math
 import requests
+import csv
 from StringIO import StringIO
 
 from flask import Blueprint, request, url_for, flash, redirect, abort, Response, current_app
@@ -827,11 +828,22 @@ def import_files(short_name):
             return redirect_content_type(url_for('.tasks', short_name=project.short_name))
         files = request.files.getlist('files[]')
         container = "project_%s" % project.short_name
+        data = [['pdf_url','question']]
+        answer = "Annotate this file"
         for file in files:
             if file and allowed_file(file.filename):
                 uploader.upload_file(file,
                                      container=container)
-
+                tempURL = "/uploads/{}/{}".format(container,file.filename)
+                data.append([tempURL,answer])
+        # create csv file
+        with open('%s_tasks.csv' % project.short_name, 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerows(data)
+        csvFile.close()
+        # create task
+        # importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
+        # show message
         flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
         return redirect_content_type(url_for('.tasks', short_name=project.short_name))
     else:
