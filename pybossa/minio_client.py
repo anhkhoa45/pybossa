@@ -1,6 +1,8 @@
 import requests
 from minio import Minio
 import json
+from datetime import timedelta
+
 client = Minio('127.0.0.1:9000',
                access_key='ManhNguyen98',
                secret_key='12345678',
@@ -18,3 +20,7 @@ class MinioClient(object):
             return response
         else:
             return 'Bucket "%s" does not exist' % bucket_name
+
+    def url(self, bucket, filename):
+        url = client.presigned_get_object(bucket, filename, expires=timedelta(days=7))
+        return url

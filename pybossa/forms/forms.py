@@ -292,6 +292,18 @@ class BulkTaskS3ImportForm(Form):
             'bucket': self.bucket.data
         }
 
+class BulkTaskMinioImportForm(Form):
+    form_name = TextField(label=None, widget=HiddenInput(), default='minio')
+    files = FieldList(TextField(label=None, widget=HiddenInput()))
+    msg_required = lazy_gettext("You must provide a valid bucket")
+    bucket = TextField(lazy_gettext('Bucket'),
+                       [validators.Required(message=msg_required)])
+    def get_import_data(self):
+        return {
+            'type': 'minio',
+            'files': self.files.data,
+            'bucket': self.bucket.data
+        }
 
 class BulkTaskLocalCSVImportForm(Form):
     form_name = TextField(label=None, widget=HiddenInput(), default='localCSV')
@@ -362,6 +374,7 @@ class GenericBulkTaskImportForm(object):
         'dropbox': BulkTaskDropboxImportForm,
         'twitter': BulkTaskTwitterImportForm,
         's3': BulkTaskS3ImportForm,
+        'minio': BulkTaskMinioImportForm,
         'youtube': BulkTaskYoutubeImportForm,
         'localCSV': BulkTaskLocalCSVImportForm,
         'iiif': BulkTaskIIIFImportForm

@@ -25,7 +25,7 @@ from .youtubeapi import BulkTaskYoutubeImport
 from .epicollect import BulkTaskEpiCollectPlusImport
 from .iiif import BulkTaskIIIFImporter
 from .s3 import BulkTaskS3Import
-
+from .minio import BulkTaskMinioImport
 class Importer(object):
 
     """Class to import data."""
@@ -37,7 +37,8 @@ class Importer(object):
                                epicollect=BulkTaskEpiCollectPlusImport,
                                s3=BulkTaskS3Import,
                                localCSV=BulkTaskLocalCSVImport,
-                               iiif=BulkTaskIIIFImporter)
+                               iiif=BulkTaskIIIFImporter,
+                               minio=BulkTaskMinioImport)
         self._importer_constructor_params = dict()
 
     def register_flickr_importer(self, flickr_params):

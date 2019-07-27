@@ -878,7 +878,7 @@ def import_minio(short_name):
     ensure_authorized_to('read', project)
     ensure_authorized_to('update', project)
     pro = pro_features()
-    form = GenericBulkTaskImportForm()('s3', request.form)
+    form = GenericBulkTaskImportForm()('minio', request.form)
     project_sanitized, owner_sanitized = sanitize_project_owner(project,
                                                                 owner,
                                                                 current_user,
@@ -896,6 +896,30 @@ def import_minio(short_name):
                     pro_features=pro)
         return handle_content_type(response)
 
+    if request.method == 'POST':
+        if form.validate():  # pragma: no cover
+            try:
+                return _import_tasks(project, **form.get_import_data())
+            except BulkImportException as err_msg:
+                flash(err_msg, 'error')
+            except Exception as inst:  # pragma: no cover
+                current_app.logger.error(inst)
+                msg = 'Oops! Looks like there was an error!'
+                flash(gettext(msg), 'error')
+        return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+    else:
+        flash(gettext('Please correct the errors'), 'error')
+        response = dict(template='/projects/task_import_minio.html',
+                project=project_sanitized,
+                owner=owner_sanitized,
+                title=title,
+                form=form,
+                n_tasks=ps.n_tasks,
+                overall_progress=ps.overall_progress,
+                n_volunteers=ps.n_volunteers,
+                n_completed_tasks=ps.n_completed_tasks,
+                pro_features=pro)
+        return handle_content_type(response)
 @blueprint.route('/<short_name>/tasks/autoimporter', methods=['GET', 'POST'])
 @login_required
 def setup_autoimporter(short_name):
