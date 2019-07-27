@@ -796,7 +796,7 @@ ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@blueprint.route('/<short_name>/tasks/importfiles', methods=['GET', 'POST'])
+@blueprint.route('/<short_name>/tasks/import_files', methods=['GET', 'POST'])
 def import_files(short_name):
     project, owner, ps = project_by_shortname(short_name)
     title = project_title(project, "Tasks")
@@ -860,6 +860,31 @@ def import_files(short_name):
     else:
         flash(gettext('Please correct the errors'), 'error')
         response = dict(template='/projects/task_import_files.html',
+                    project=project_sanitized,
+                    owner=owner_sanitized,
+                    title=title,
+                    form=form,
+                    n_tasks=ps.n_tasks,
+                    overall_progress=ps.overall_progress,
+                    n_volunteers=ps.n_volunteers,
+                    n_completed_tasks=ps.n_completed_tasks,
+                    pro_features=pro)
+        return handle_content_type(response)
+
+@blueprint.route('/<short_name>/tasks/import_minio', methods=['GET','POST'])
+def import_minio(short_name):
+    project, owner, ps = project_by_shortname(short_name)
+    title = project_title(project, "Tasks")
+    ensure_authorized_to('read', project)
+    ensure_authorized_to('update', project)
+    pro = pro_features()
+    form = GenericBulkTaskImportForm()('s3', request.form)
+    project_sanitized, owner_sanitized = sanitize_project_owner(project,
+                                                                owner,
+                                                                current_user,
+                                                                ps)
+    if request.method == 'GET':
+        response = dict(template='/projects/task_import_minio.html',
                     project=project_sanitized,
                     owner=owner_sanitized,
                     title=title,
