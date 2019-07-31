@@ -25,8 +25,10 @@ class BulkTaskMinioImport(BulkTaskImport):
 
     importer_id = "minio"
 
-    def __init__(self, files, bucket, last_import_meta=None):
+    def __init__(self, accesskey, secretkey, files, bucket, last_import_meta=None):
         self.files = files
+        self.accesskey = accesskey
+        self.secretkey = secretkey
         self.bucket = bucket
         self.last_import_meta = last_import_meta
 
@@ -37,7 +39,7 @@ class BulkTaskMinioImport(BulkTaskImport):
         return len(self.tasks())
 
     def _create_task_info(self, filename):
-        url = MinioClient().url(self.bucket, filename)
+        url = MinioClient().url(self.accesskey, self.secretkey, self.bucket, filename)
         info = {'filename': filename,
                 'url': url,
                 'link': url}

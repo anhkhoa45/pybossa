@@ -295,14 +295,20 @@ class BulkTaskS3ImportForm(Form):
 class BulkTaskMinioImportForm(Form):
     form_name = TextField(label=None, widget=HiddenInput(), default='minio')
     files = FieldList(TextField(label=None, widget=HiddenInput()))
-    msg_required = lazy_gettext("You must provide a valid bucket")
+    msg_required = lazy_gettext("The field is required")
+    accesskey = TextField(lazy_gettext('Access Key'),
+                       [validators.Required(message=msg_required)])
+    secretkey = PasswordField(lazy_gettext('Secret Key'),
+                       [validators.Required(message=msg_required)])
     bucket = TextField(lazy_gettext('Bucket'),
                        [validators.Required(message=msg_required)])
     def get_import_data(self):
         return {
             'type': 'minio',
             'files': self.files.data,
-            'bucket': self.bucket.data
+            'bucket': self.bucket.data,
+            'accesskey': self.accesskey.data,
+            'secretkey': self.secretkey.data
         }
 
 class BulkTaskLocalCSVImportForm(Form):
