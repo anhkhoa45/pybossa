@@ -26,7 +26,7 @@ from pybossa.cache import users as cached_users
 from pybossa.cache import categories as cached_cat
 from pybossa.util import rank, handle_content_type
 from jinja2.exceptions import TemplateNotFound
-
+from pybossa.core import project_repo
 
 blueprint = Blueprint('home', __name__)
 
@@ -45,6 +45,11 @@ def home():
         data = dict(featured=[])
     # Add historical contributions
     historical_projects = []
+    projects= project_repo.get_all()
+    data['projects'] = []
+    for project in projects:
+        if project.published == True:
+            data['projects'].append(project)
     if current_user.is_authenticated():
         user_id = current_user.id
         historical_projects = cached_users.projects_contributed(user_id, order_by='last_contribution')[:3]
