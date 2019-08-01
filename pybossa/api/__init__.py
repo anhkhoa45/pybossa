@@ -321,7 +321,7 @@ def submittask(project_id=None, short_name=None):
     #     return "test", 200
     temp = request.get_json()
     datas = temp['data']
-    init(datas[0]['documentId'])
+    init(datas[0]['documentId'],short_name)
     for data in datas:
         annolist = data['annotations']
         page = data['pageNumber']
@@ -336,24 +336,31 @@ def submittask(project_id=None, short_name=None):
                     n_anno.update(rectangle)
                     anno['page'] = page
                     add_anno(n_anno)
-    finish(datas[0]['documentId'])
+    finish(datas[0]['documentId'],short_name, current_user)
     return "ok", 200
 
-def init(url):
+def init(url,short_name):
     global pg, root, tree
 
     r = requests.get(url, verify=False)
-    with open('result-file/tmp.pdf', 'wb') as f:
+    try:
+        if(os.path.exists('result-file/%s' % short_name) == False):
+            os.mkdir('result-file/%s' % short_name)
+    except OSError:
+        print ("Creation of the directory failed")
+    else:
+        print ("Successfully created the directory")
+    with open('result-file/%s/tmp.pdf' % short_name, 'wb') as f:
         f.write(r.content)
 
-    inf = open('result-file/tmp.pdf', 'rb')
-    outf = open('result-file/tmp.xml', 'wb')
+    inf = open('result-file/%s/tmp.pdf' % short_name, 'rb')
+    outf = open('result-file/%s/tmp.xml' % short_name, 'wb')
     pg = convert_xml(inf, outf)
     inf.close()
     outf.close()
 
     parser = etree.XMLParser(remove_blank_text=True)
-    tree = etree.parse("result-file/tmp.xml", parser)
+    tree = etree.parse("result-file/%s/tmp.xml" % short_name, parser)
     root = tree.getroot()
     root = clear_xml(root)
 
@@ -364,16 +371,17 @@ def add_anno(r_anno):
     anno.elements = tag_covered
     annos.append(anno)
 
-def finish(url):
+def finish(url, short_name,current_user):
     global pg, root, annos, tree
-    PATH_XML = 'result-file/' + url.split('/')[-1].split('.')[0] + '.xml'
+    filename = url.split('/')[-1].split('.')[0] + '-' + str(current_user.id)
+    PATH_XML = 'result-file/%s/%s.xml' % (short_name,filename)
     # print (PATH_XML)
     for anno in annos:
         add_annotate_tag(anno)
     merge_annotate_tag(root)
     tree.write(PATH_XML, pretty_print=True)
-    os.remove('result-file/tmp.xml')
-    os.remove('result-file/tmp.pdf')
+    os.remove('result-file/%s/tmp.xml' % short_name)
+    os.remove('result-file/%s/tmp.pdf' % short_name)
     pg, root, annos = (None, None, [])
 
 

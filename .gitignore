@@ -48,4 +48,4 @@ env3/
 *.bak
 *.orig
 tags
-result-file
+result-file/*
