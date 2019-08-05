@@ -324,7 +324,7 @@ def new():
           'success')
     auditlogger.add_log_entry(None, project, current_user)
 
-    return redirect_content_type(url_for('.update',
+    return redirect_content_type(url_for('.tasks',
                                          short_name=project.short_name))
 
 
@@ -787,7 +787,8 @@ ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+def isPDF(filename):
+    return '.' in filename and filename.rsplit('.',1)[1].lower() == 'pdf'
 @blueprint.route('/<short_name>/tasks/import_files', methods=['GET', 'POST'])
 def import_files(short_name):
     project, owner, ps = project_by_shortname(short_name)
@@ -822,33 +823,56 @@ def import_files(short_name):
         container = "project_%s" % project.short_name
         data = [['pdf_url','question']]
         answer = "Annotate this file"
+        n = 0
         for file in files:
             if file and allowed_file(file.filename):
                 uploader.upload_file(file,
                                      container=container)
                 tempURL = "http://{}/uploads/{}/{}".format(tempArr[2],container,file.filename)
-                data.append([tempURL,answer])
-        # create csv file
-        csvFileName = '%s_tasks.csv' % project.short_name
-        with open(csvFileName, 'w') as csvFile:
-            writer = csv.writer(csvFile)
-            writer.writerows(data)
-        csvFile.close()
-        # create task
-        import_data = {'type': 'localCSV', 'csv_filename': os.path.join(csvFileName)}
-        try:
-            _import_tasks(project, **import_data)
-        except BulkImportException as err_msg:
-            flash(err_msg, 'error')
-        # removefile
-        try:
-            os.remove(csvFileName)
-        except Exception:
-            flash('Something went wrong!', 'error')
-        # importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
-        # show message
-        flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
-        return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+                if(isPDF(file.filename)):
+                    data.append([tempURL,answer])
+                else:
+                    with open ('uploads/{}/{}'.format(container,file.filename), 'rt') as f:
+                        text = f.read()
+                    sentences = re.split(r' *[\.\?!][\'"\)\]]* *', text)
+                    for sentence in sentences:
+                        if(sentence != '' and sentence != '\n'):
+                            sentence = sentence.replace('\n','')
+                            task = Task(project_id=project.id)
+                            task.info = {"data": sentence}
+                            found = task_repo.get_task_by(project_id=project.id, info=task.info)
+                            if found is None:
+                                task_repo.save(task)
+                                n = n + 1
+        if (isPDF(files[0].filename)):
+            # create csv file
+            csvFileName = '%s_tasks.csv' % project.short_name
+            with open(csvFileName, 'w') as csvFile:
+                writer = csv.writer(csvFile)
+                writer.writerows(data)
+            csvFile.close()
+            # create task
+            import_data = {'type': 'localCSV', 'csv_filename': os.path.join(csvFileName)}
+            try:
+                _import_tasks(project, **import_data)
+            except BulkImportException as err_msg:
+                flash(err_msg, 'error')
+            # removefile
+            try:
+                os.remove(csvFileName)
+            except Exception:
+                flash('Something went wrong!', 'error')
+            importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
+            # show message
+            flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
+            return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+        else:
+            if n > 0:
+                flash(gettext('Imported {} sentences to this task'.format(n)), 'success')
+                return redirect_content_type(url_for('.tasks', short_name=project.short_name))
+            else:
+                flash(gettext('Something went wrong!'), 'error')
+                return redirect_content_type(url_for('.tasks', short_name=project.short_name))
     else:
         flash(gettext('Please correct the errors'), 'error')
         response = dict(template='/projects/task_import_files.html',
