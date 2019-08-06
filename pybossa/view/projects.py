@@ -23,6 +23,7 @@ import os
 import math
 import requests
 import csv
+import random
 from StringIO import StringIO
 
 from flask import Blueprint, request, url_for, flash, redirect, abort, Response, current_app
@@ -716,11 +717,12 @@ def import_labels(short_name):
                                                                 ps)
 
     class Label:
-        def __init__(self, key, value):
+        def __init__(self, key, value, color):
             self.key = key
             self.value = value
+            self.color = color
         def toObject(self):
-            return {"key": self.key, "value": self.value}
+            return {"key": self.key, "value": self.value, "color": self.color}
 
     if request.method == 'GET':
         if project.info:
@@ -745,7 +747,9 @@ def import_labels(short_name):
         labels = []
         while i < len(keys):
             if(keys[i] != "" and values[i] != ""):
-                temp = Label(keys[i],values[i])
+                r = lambda: random.randint(0,255)
+                color = ('#%02X%02X%02X' % (r(),r(),r()))
+                temp = Label(keys[i],values[i], color)
                 labels.append(temp.toObject())
             i = i + 1
         db_project = project_repo.get(project.id)
