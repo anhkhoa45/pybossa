@@ -866,7 +866,7 @@ def import_files(short_name):
                 os.remove(csvFileName)
             except Exception:
                 flash('Something went wrong!', 'error')
-            importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
+            # importer.create_tasks(task_repo,project.id,'%s_tasks.csv' % project.short_name)
             # show message
             flash(gettext('Imported {} files to this task'.format(len(files))), 'success')
             return redirect_content_type(url_for('.tasks', short_name=project.short_name))
